@@ -28,7 +28,30 @@ Basic Execution: Run the script using Python.<br>
 python GalyPalCalc.py
 ```
 ### Output
-The script will output the optimal Pal configuration to the console and write the results to an output.txt file.<br>
+The script will output the optimal Pal configuration to the console and write the results to an output.txt file.<be>
+#### Example Output
+```
+Total 'ExpSum' of selected Pals: 344.0
+Total exprating for Kindling: 16.0
+Total exprating for Watering: 32.0
+Total exprating for Planting: 44.0
+Total exprating for Electricity: 16.0
+Total exprating for Handiwork: 52.0
+Total exprating for Gathering: 32.0
+Total exprating for Lumbering: 28.0
+Total exprating for Mining: 40.0
+Total exprating for Medicine: 16.0
+Total exprating for Cooling: 16.0
+Total exprating for Transporting: 52.0
+2.0 instances of Pal Lyleen are selected
+2.0 instances of Pal Wumpo are selected
+3.0 instances of Pal Verdash are selected
+1.0 instances of Pal Orserk are selected
+2.0 instances of Pal Blazamut are selected
+1.0 instances of Pal Reptyro Cryst are selected
+2.0 instances of Pal Jormuntide are selected
+```
+
 ## Configuration
 You can customize the script's behavior by editing the GalyPalCalcConfig.py file. Available configuration options include:<br>
 <br>
