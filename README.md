@@ -44,7 +44,7 @@ Your feedback on this new UI version is invaluable. I look forward to hearing ab
 ### Dependencies
 The script will automatically install required Python packages (pandas and pulp) if they are not already installed.<br>
 
-## Usage<br>
+## Non-UI Usage (deprecated)<br>
 Basic Execution: Run the script using Python.<br>
 ```
 python GalyPalCalc.py
