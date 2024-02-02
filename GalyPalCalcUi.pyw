@@ -314,8 +314,11 @@ class LinkedSlider:
             self.channel_vars.append(channel_var)
 
     def update_channel(self, channel_index):
-        # Update the channel of the slider
-        self.channel = channel_index
+        # Set the channel to the selected one or None if unselected
+        if self.channel_vars[channel_index].get() == 1:
+            self.channel = channel_index
+        else:
+            self.channel = None  # No channel assigned
 
         # Ensure only one channel is selected at a time
         for i, var in enumerate(self.channel_vars):
@@ -331,22 +334,21 @@ class LinkedSlider:
 
 def on_slider_change(event):
     moved_slider = None
-    moved_slider_channel = None
 
-    # Identify which slider was moved and its channel
+    # Identify which slider was moved
     for slider in sliders:
         if slider.slider == event.widget:
             moved_slider = slider
-            moved_slider_channel = slider.channel
             break
 
-    if moved_slider_channel is not None:
+    if moved_slider and moved_slider.channel is not None:
         # Update all sliders in the same channel
         for slider in sliders:
-            if slider.channel == moved_slider_channel and slider != moved_slider:
+            if slider.channel == moved_slider.channel and slider != moved_slider:
                 slider.slider.set(moved_slider.value.get())
     
     recalculate_results()
+
 
 def on_blacklist_update(event):
     recalculate_results()
