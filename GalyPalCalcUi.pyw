@@ -1,8 +1,40 @@
-import tkinter as tk
-from tkinter import Scale, Checkbutton, IntVar, HORIZONTAL, Frame, Label, Listbox, MULTIPLE
-import pandas as pd
-from io import StringIO
-from pulp import *
+import sys
+
+# Function to install packages using pip
+def install(package):
+    if hasattr(sys, 'real_prefix'):
+        # We are in a virtual environment, so use pip to install
+        !{sys.executable} -m pip install {package}
+    else:
+        # We are not in a virtual environment, so try to install globally
+        !pip install {package}
+
+# Try importing necessary packages, and install them if import fails
+try:
+    import tkinter as tk
+    from tkinter import Scale, Checkbutton, IntVar, HORIZONTAL, Frame, Label, Listbox, MULTIPLE
+except ImportError:
+    install('tkinter')
+    import tkinter as tk
+    from tkinter import Scale, Checkbutton, IntVar, HORIZONTAL, Frame, Label, Listbox, MULTIPLE
+
+try:
+    import pandas as pd
+except ImportError:
+    install('pandas')
+    import pandas as pd
+
+try:
+    from io import StringIO
+except ImportError:
+    install('io')
+    from io import StringIO
+
+try:
+    from pulp import *
+except ImportError:
+    install('pulp')
+    from pulp import *
 
 
 
