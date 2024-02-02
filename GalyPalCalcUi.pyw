@@ -380,7 +380,7 @@ def update_max_constraint(_):
         slider.slider.config(to=max_value)
 
 root = tk.Tk()
-root.title('Linked Sliders Configuration')
+root.title('GalyPalCalc')
 root.configure(bg='black')
 
 # Main configuration frame
