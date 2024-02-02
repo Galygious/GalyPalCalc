@@ -8,7 +8,7 @@ PuLP<be>
 
 # Introducing GalyPalCalc UI :computer:
 
-We're excited to bring a significant enhancement to GalyPalCalc with the launch of a separate UI version: `GalyPalCalcUi.pyw`. This new version introduces a graphical user interface, offering a more interactive and user-friendly way to optimize your Pal setups in Palworld.
+I'm excited to bring a significant enhancement to GalyPalCalc with the launch of a separate UI version: `GalyPalCalcUi.pyw`. This new version introduces a graphical user interface, offering a more interactive and user-friendly way to optimize your Pal setups in Palworld.
 
 ## Key Features of GalyPalCalc UI:
 - **Dedicated UI Script**: `GalyPalCalcUi.pyw` is a standalone script, specifically designed for a graphical interface experience.
@@ -24,9 +24,9 @@ python GalyPalCalcUi.pyw
 This will launch the graphical interface where you can interactively configure and optimize your Pal setups.
 
 ## Upcoming Documentation:
-We will provide detailed documentation on how to fully utilize GalyPalCalc UI tomorrow. This comprehensive guide will include step-by-step instructions and tips to enhance your user experience.
+I will provide detailed documentation on how to fully utilize GalyPalCalc UI tomorrow. This comprehensive guide will include step-by-step instructions and tips to enhance your user experience.
 
-Your feedback on this new UI version is invaluable. We look forward to hearing about your experiences and suggestions for further improvements. Try out GalyPalCalc UI and take your Palworld gaming to the next level!
+Your feedback on this new UI version is invaluable. I look forward to hearing about your experiences and suggestions for further improvements. Try out GalyPalCalc UI and take your Palworld gaming to the next level!
 
 
 
@@ -114,7 +114,7 @@ min_exprating_requirements = {
 In Palworld, the effectiveness of a Pal's skills is assumed to increase in a manner that seems more exponential than linear. This assumption is the basis for the exprating (Exponential Rating) used in our script.<br>
 
 #### The Exponential Model
-We use the formula 2^skill_level to calculate exprating. This model is based on the observation that each additional skill level contributes significantly more to a Pal's effectiveness than the previous one.<br>
+I use the formula 2^skill_level to calculate exprating. This model is based on the observation that each additional skill level contributes significantly more to a Pal's effectiveness than the previous one.<br>
 
 #### Practical Example
 To put this into perspective, let's consider a scenario:<br>
