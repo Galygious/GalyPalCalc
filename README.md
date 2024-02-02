@@ -16,20 +16,6 @@ I'm excited to bring a significant enhancement to GalyPalCalc with the launch of
 - **Real-Time Visualization**: See your Pal configuration updates in real time as you adjust your preferences in the UI.
 - **User-Friendly Interface**: Whether you're a seasoned gamer or new to Palworld, the UI is designed to be straightforward and easy to navigate.
 
-## Running the UI Version:
-To experience the new UI, run the dedicated script:
-```
-python GalyPalCalcUi.pyw
-```
-This will launch the graphical interface where you can interactively configure and optimize your Pal setups.
-
-## Upcoming Documentation:
-I will provide detailed documentation on how to fully utilize GalyPalCalc UI tomorrow. This comprehensive guide will include step-by-step instructions and tips to enhance your user experience.
-
-Your feedback on this new UI version is invaluable. I look forward to hearing about your experiences and suggestions for further improvements. Try out GalyPalCalc UI and take your Palworld gaming to the next level!
-
-
-
 ## Installation<br>
 Python Installation<br>
 Ensure you have Python installed on your machine. You can download Python from here.<br>
@@ -43,6 +29,18 @@ Navigate to the script's directory.<br>
 ```
 cd GalyPalCalc
 ```
+## Running the UI Version:
+To experience the new UI, run the dedicated script:
+```
+python GalyPalCalcUi.pyw
+```
+This will launch the graphical interface where you can interactively configure and optimize your Pal setups.
+
+## Upcoming Documentation:
+I will provide detailed documentation on how to fully utilize GalyPalCalc UI tomorrow. This comprehensive guide will include step-by-step instructions and tips to enhance your user experience.
+
+Your feedback on this new UI version is invaluable. I look forward to hearing about your experiences and suggestions for further improvements. Try out GalyPalCalc UI and take your Palworld gaming to the next level!
+
 ### Dependencies
 The script will automatically install required Python packages (pandas and pulp) if they are not already installed.<br>
 
