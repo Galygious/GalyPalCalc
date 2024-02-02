@@ -262,20 +262,35 @@ def recalculate_results():
     # Solve the problem
     status = prob.solve()
 
-    # Output the results
-    results_text = ""
+    # Check if an optimal solution was found
     if LpStatus[status] == 'Optimal':
+        # Prepare team composition output
+        team_output = ""
         for i in df.index:
             if pal_vars[i].varValue > 0:
-                results_text += f"{int(pal_vars[i].varValue)} x {df.loc[i, 'Name']}\n"
-    else:
-        results_text += "No optimal solution found. You may want to check the constraints.\n"
+                team_output += f"{int(pal_vars[i].varValue)} x {df.loc[i, 'Name']}\n"
 
-    # Update the output Text widget with the results
-    output_text.config(state=tk.NORMAL)  # Enable editing of the widget
-    output_text.delete(1.0, tk.END)  # Clear existing text
-    output_text.insert(tk.END, results_text)  # Insert new text
-    output_text.config(state=tk.DISABLED)  # Set back to read-only mode
+        # Prepare skill total output
+        skill_output = ""
+        for skill in skill_columns:
+            total_skill_exprating = sum(pal_vars[i].varValue * df.loc[i, f'{skill}_ExpVal'] for i in df.index)
+            skill_output += f"{skill}: {total_skill_exprating}\n"
+    else:
+        # Prepare output for no solution
+        team_output = "No optimal solution found. You may want to check the constraints.\n"
+        skill_output = ""
+
+    # Update the Team Composition Output Text widget
+    team_output_text.config(state=tk.NORMAL)
+    team_output_text.delete(1.0, tk.END)
+    team_output_text.insert(tk.END, team_output)
+    team_output_text.config(state=tk.DISABLED)
+
+    # Update the Skill Totals Output Text widget
+    skill_output_text.config(state=tk.NORMAL)
+    skill_output_text.delete(1.0, tk.END)
+    skill_output_text.insert(tk.END, skill_output)
+    skill_output_text.config(state=tk.DISABLED)
     
 # Define a callback function to set the maximum constraint
 def set_maximum_constraint():
@@ -416,14 +431,27 @@ blacklist_listbox.bind('<<ListboxSelect>>', on_blacklist_update)
 for idx, name in enumerate(pal_names, 1):
     blacklist_listbox.insert(tk.END, f"{idx}. {name}")
 
-# Right configuration frame for Output
+# Modify the Right configuration frame for Output to contain two frames for output
 right_config_frame = Frame(config_frame, bg='black')
 right_config_frame.pack(side=tk.LEFT, padx=10)
 
-# Output Text widget
-output_text = tk.Text(right_config_frame, height=10, width=50, bg='black', fg='white', wrap=tk.WORD)
-output_text.pack()
-output_text.config(state=tk.DISABLED)  # Start with the text widget in read-only mode
+# Frame for Team Composition Output
+team_output_frame = Frame(right_config_frame, bg='black')
+team_output_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+# Frame for Skill Totals Output
+skill_output_frame = Frame(right_config_frame, bg='black')
+skill_output_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+# Text widget for Team Composition Output
+team_output_text = tk.Text(team_output_frame, height=11, width=25, bg='black', fg='white', wrap=tk.WORD)
+team_output_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+team_output_text.config(state=tk.DISABLED)  # Start with the text widget in read-only mode
+
+# Text widget for Skill Totals Output
+skill_output_text = tk.Text(skill_output_frame, height=11, width=25, bg='black', fg='white', wrap=tk.WORD)
+skill_output_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+skill_output_text.config(state=tk.DISABLED)  # Start with the text widget in read-only mode
 
 # Sliders section below the configuration frames
 sliders_frame = Frame(root, bg='black')
