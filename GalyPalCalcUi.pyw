@@ -1,20 +1,16 @@
+import subprocess
 import sys
 
 # Function to install packages using pip
 def install(package):
-    if hasattr(sys, 'real_prefix'):
-        # We are in a virtual environment, so use pip to install
-        !{sys.executable} -m pip install {package}
-    else:
-        # We are not in a virtual environment, so try to install globally
-        !pip install {package}
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 # Try importing necessary packages, and install them if import fails
 try:
     import tkinter as tk
     from tkinter import Scale, Checkbutton, IntVar, HORIZONTAL, Frame, Label, Listbox, MULTIPLE
 except ImportError:
-    install('tkinter')
+    install('tkinter')  # Note: Tkinter is usually included with Python, might not need this line
     import tkinter as tk
     from tkinter import Scale, Checkbutton, IntVar, HORIZONTAL, Frame, Label, Listbox, MULTIPLE
 
@@ -27,7 +23,7 @@ except ImportError:
 try:
     from io import StringIO
 except ImportError:
-    install('io')
+    install('io')  # Note: The 'io' module is included in standard Python, should not need to install
     from io import StringIO
 
 try:
@@ -35,6 +31,7 @@ try:
 except ImportError:
     install('pulp')
     from pulp import *
+
 
 
 
