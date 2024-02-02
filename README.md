@@ -4,7 +4,31 @@ GalyPalCalc is a Python script designed to calculate the best possible Pal setup
 ## Requirements<br>
 Python (3.x recommended)<br>
 Pandas<br>
-PuLP<br>
+PuLP<be>
+
+# Introducing GalyPalCalc UI :computer:
+
+We're excited to bring a significant enhancement to GalyPalCalc with the launch of a separate UI version: `GalyPalCalcUi.pyw`. This new version introduces a graphical user interface, offering a more interactive and user-friendly way to optimize your Pal setups in Palworld.
+
+## Key Features of GalyPalCalc UI:
+- **Dedicated UI Script**: `GalyPalCalcUi.pyw` is a standalone script, specifically designed for a graphical interface experience.
+- **Interactive Elements**: Utilize sliders, checkboxes, and buttons for an easy and intuitive setup process.
+- **Real-Time Visualization**: See your Pal configuration updates in real time as you adjust your preferences in the UI.
+- **User-Friendly Interface**: Whether you're a seasoned gamer or new to Palworld, the UI is designed to be straightforward and easy to navigate.
+
+## Running the UI Version:
+To experience the new UI, run the dedicated script:
+```
+python GalyPalCalcUi.pyw
+```
+This will launch the graphical interface where you can interactively configure and optimize your Pal setups.
+
+## Upcoming Documentation:
+We will provide detailed documentation on how to fully utilize GalyPalCalc UI tomorrow. This comprehensive guide will include step-by-step instructions and tips to enhance your user experience.
+
+Your feedback on this new UI version is invaluable. We look forward to hearing about your experiences and suggestions for further improvements. Try out GalyPalCalc UI and take your Palworld gaming to the next level!
+
+
 
 ## Installation<br>
 Python Installation<br>
