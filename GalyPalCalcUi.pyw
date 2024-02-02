@@ -8,10 +8,12 @@ def install(package):
 # Try importing necessary packages, and install them if import fails
 try:
     import tkinter as tk
+    from tkinter import ttk  # Import ttk from tkinter
     from tkinter import Scale, Checkbutton, IntVar, HORIZONTAL, Frame, Label, Listbox, MULTIPLE
 except ImportError:
     install('tkinter')  # Note: Tkinter is usually included with Python, might not need this line
     import tkinter as tk
+    from tkinter import ttk  # Import ttk from tkinter after installation
     from tkinter import Scale, Checkbutton, IntVar, HORIZONTAL, Frame, Label, Listbox, MULTIPLE
 
 try:
@@ -258,6 +260,20 @@ def recalculate_results():
 
     # Add a constraint for the maximum number of Pals
     prob += lpSum([pal_vars[i] for i in df.index]) <= max_pals
+    
+    # Extract constraints from the filters
+    for pal_var, max_count_var in pal_constraint_vars:
+        pal_name = pal_var.get()
+        max_count = max_count_var.get()
+
+        if pal_name and max_count.isdigit():  # Check if both fields are filled and max_count is a number
+            max_count = int(max_count)
+            # Apply this constraint to your optimization logic
+            # For example, if using a linear programming model:
+            # Find the index of the pal in your DataFrame
+            pal_index = df[df['Name'] == pal_name].index.item()
+            # Add a constraint for this pal
+            prob += pal_vars[pal_index] <= max_count
 
     # Solve the problem
     status = prob.solve()
@@ -308,14 +324,14 @@ def set_maximum_constraint():
 class LinkedSlider:    
     def __init__(self, master, label_text, num_channels, slider_moved_callback):
         self.frame = Frame(master, bg='black')
-        self.frame.pack()
+        self.frame.grid()  # Use grid instead of pack
 
         self.label = Label(self.frame, text=label_text, width=10, anchor='w', fg='white', bg='black')
-        self.label.pack(side=tk.LEFT, padx=(0, 10))
+        self.label.grid(row=0, column=0, sticky='w', padx=(0, 10))  # Use grid instead of pack
 
         self.value = IntVar()
         self.slider = Scale(self.frame, from_=0, to=max_value, resolution=2, orient=HORIZONTAL, length=200, variable=self.value, bg='black', fg='white', troughcolor='grey')
-        self.slider.pack(side=tk.LEFT)
+        self.slider.grid(row=0, column=1, sticky='w')  # Use grid instead of pack
 
         self.slider.bind("<ButtonRelease-1>", slider_moved_callback)
 
@@ -325,7 +341,7 @@ class LinkedSlider:
         for i in range(num_channels):
             channel_var = IntVar()
             cb = Checkbutton(self.frame, text=f"Ch {i+1}", variable=channel_var, command=lambda i=i: self.update_channel(i), selectcolor='black', fg='white', bg='black', activebackground='black', activeforeground='white')
-            cb.pack(side=tk.LEFT)
+            cb.grid(row=0, column=2+i, sticky='w')  # Use grid instead of pack
             self.channel_vars.append(channel_var)
 
     def update_channel(self, channel_index):
@@ -340,12 +356,12 @@ class LinkedSlider:
             if i != channel_index:
                 var.set(0)
 
-
     def get_selected_channel(self):
         for i, var in enumerate(self.channel_vars):
             if var.get() == 1:
                 return i
         return None
+
 
 def on_slider_change(event):
     moved_slider = None
@@ -378,88 +394,175 @@ def update_max_constraint(_):
     max_value = max_constraint_slider.get()
     for slider in sliders:
         slider.slider.config(to=max_value)
+        
+def limit_entry_size(var, maxlen=3):
+    """Limits the size of the entry to maxlen characters."""
+    if len(var.get()) > maxlen:
+        var.set(var.get()[:maxlen])
+def on_filter_change(*args):
+    # Function called whenever a filter value changes
+    recalculate_results()
 
 root = tk.Tk()
 root.title('GalyPalCalc')
 root.configure(bg='black')
 
-# Main configuration frame
-config_frame = Frame(root, bg='black')
-config_frame.pack(side=tk.TOP, fill=tk.X)
+# Define a main container frame using grid
+main_container = Frame(root, bg='black')
+main_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-# Left configuration frame for Max Pals and Infused
-left_config_frame = Frame(config_frame, bg='black')
-left_config_frame.pack(side=tk.LEFT, padx=10)
+# Configure the grid layout within the main container
+main_container.grid_columnconfigure(0, weight=1)
+main_container.grid_columnconfigure(1, weight=2)  # Blacklist frame may need more space
+main_container.grid_columnconfigure(2, weight=2)  # Output frame may need more space
+main_container.grid_columnconfigure(3, weight=1)  # Filter frame
+main_container.grid_rowconfigure(0, weight=1)
+main_container.grid_rowconfigure(1, weight=1)
+main_container.grid_rowconfigure(2, weight=4)  # Sliders and channels may need more space
+main_container.grid_rowconfigure(3, weight=4)  # Sliders and channels may need more space
 
-# Max Pals Slider
-Label(left_config_frame, text="Max Pals", fg='white', bg='black').pack()
-max_pals_slider = Scale(left_config_frame, from_=1, to=20, orient=HORIZONTAL, bg='black', fg='white', troughcolor='grey', command=update_max_pals)
-max_pals_slider.pack()
+# Left configuration frame for Max Pals, Max Constraints, and Infused (1,1)
+left_config_frame = Frame(main_container, bg='black')
+left_config_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-# Create a IntVar to store max_pals value
-max_pals_var = IntVar()
+# Create and place the Max Pals slider, Max Constraints slider, and Infused checkbox in left_config_frame
+# Create the left_config_frame with a grid layout
+left_config_frame = Frame(main_container, bg='black')
+left_config_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-# Link the StringVar to the slider and set the initial value
-max_pals_slider.config(variable=max_pals_var)
-max_pals_slider.set(1)  # Set an initial value
-
-# Max constraint Slider
-Label(left_config_frame, text="Max Constraints", fg='white', bg='black').pack()
-max_constraint_slider = Scale(left_config_frame, from_=20, to=640, resolution = 20, orient=HORIZONTAL, bg='black', fg='white', troughcolor='grey', command=update_max_constraint)
-max_constraint_slider.pack()
-
-# Create a IntVar to store max_pals value
-max_constraint_var = IntVar()
-
-# Link the StringVar to the slider and set the initial value
-max_constraint_slider.config(variable=max_constraint_var)
-max_constraint_slider.set(100)  # Set an initial value
-
-# Infused Checkbutton
+# Create the IntVar for max_pals and max_constraints
+max_pals_var = IntVar(value=1)
+max_constraint_var = IntVar(value=100)
 infused_var = IntVar()
-Checkbutton(left_config_frame, text="Infused", variable=infused_var, command=recalculate_results, selectcolor='black', fg='white', bg='black', activebackground='black', activeforeground='white').pack()
 
-# Center configuration frame for Blacklist
-center_config_frame = Frame(config_frame, bg='black')
-center_config_frame.pack(side=tk.LEFT, padx=10)
+# Max Pals label and slider
+max_pals_label = Label(left_config_frame, text="Max Pals", fg='white', bg='black')
+max_pals_label.grid(row=0, column=0, sticky="w", padx=5, pady=2)
+max_pals_slider = Scale(left_config_frame, from_=1, to=20, orient=HORIZONTAL, bg='black', fg='white', troughcolor='grey', variable=max_pals_var)
+max_pals_slider.grid(row=1, column=0, sticky="ew", padx=5, pady=2)
+max_pals_slider.bind("<ButtonRelease-1>", update_max_pals)
 
-# Blacklist section
-Label(center_config_frame, text="Blacklist Pals", fg='white', bg='black').pack()
-blacklist_listbox = Listbox(center_config_frame, selectmode=MULTIPLE, bg='grey', fg='white', selectbackground='darkgrey', selectforeground='white')
-blacklist_listbox.pack()
+# Infused checkbutton
+infused_checkbutton = Checkbutton(left_config_frame, text="Infused", variable=infused_var, selectcolor='black', fg='white', bg='black', activebackground='black', activeforeground='white')
+infused_checkbutton.grid(row=2, column=0, sticky="w", padx=5, pady=2)
+
+# Max Constraints label and slider
+max_constraints_label = Label(left_config_frame, text="Max Constraints", fg='white', bg='black')
+max_constraints_label.grid(row=3, column=0, sticky="w", padx=5, pady=2)
+max_constraint_slider = Scale(left_config_frame, from_=20, to=640, resolution=20, orient=HORIZONTAL, bg='black', fg='white', troughcolor='grey', variable=max_constraint_var)
+max_constraint_slider.grid(row=4, column=0, sticky="ew", padx=5, pady=2)
+max_constraint_slider.bind("<ButtonRelease-1>", update_max_constraint)
+
+# Center configuration frame for Blacklist (1,2 and 2,2)
+center_config_frame = Frame(main_container, bg='black')
+center_config_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=10, pady=10)
+
+# Create and place the Blacklist section in center_config_frame
+# Blacklist label
+blacklist_label = Label(center_config_frame, text="Blacklist Pals", fg='white', bg='black')
+blacklist_label.grid(row=0, column=0, sticky="w", padx=5, pady=2)
+
+# Blacklist listbox
+blacklist_listbox = Listbox(center_config_frame, selectmode=MULTIPLE, bg='grey', fg='white', selectbackground='darkgrey', selectforeground='white', exportselection=False)
+blacklist_listbox.grid(row=1, column=0, sticky="nsew", padx=5, pady=2)  # 'nsew' makes the listbox expand
+center_config_frame.grid_rowconfigure(1, weight=1)  # This allows the listbox to expand vertically
+center_config_frame.grid_columnconfigure(0, weight=1)  # This allows the listbox to expand horizontally
+
+# Binding for the blacklist update
 blacklist_listbox.bind('<<ListboxSelect>>', on_blacklist_update)
+
+# Populate the blacklist listbox with pal_names
 for idx, name in enumerate(pal_names, 1):
     blacklist_listbox.insert(tk.END, f"{idx}. {name}")
 
-# Modify the Right configuration frame for Output to contain two frames for output
-right_config_frame = Frame(config_frame, bg='black')
-right_config_frame.pack(side=tk.LEFT, padx=10)
+# Right configuration frame for Output (1,3 and 2,3)
+right_config_frame = Frame(main_container, bg='black')
+right_config_frame.grid(row=0, column=2, rowspan=2, sticky="nsew", padx=10, pady=10)
+
+# Create and place the Team Composition Output and Skill Totals Output in right_config_frame
+# Right configuration frame for Output (1,3 and 2,3)
+right_config_frame = Frame(main_container, bg='black')
+right_config_frame.grid(row=0, column=2, rowspan=2, sticky="nsew", padx=10, pady=10)
+right_config_frame.grid_columnconfigure(0, weight=1)  # Allow the team output frame to expand horizontally
+right_config_frame.grid_columnconfigure(1, weight=1)  # Allow the skill output frame to expand horizontally
 
 # Frame for Team Composition Output
 team_output_frame = Frame(right_config_frame, bg='black')
-team_output_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+team_output_frame.grid(row=0, column=0, sticky="nsew")
 
 # Frame for Skill Totals Output
 skill_output_frame = Frame(right_config_frame, bg='black')
-skill_output_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+skill_output_frame.grid(row=0, column=1, sticky="nsew")
 
 # Text widget for Team Composition Output
 team_output_text = tk.Text(team_output_frame, height=11, width=25, bg='black', fg='white', wrap=tk.WORD)
-team_output_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-team_output_text.config(state=tk.DISABLED)  # Start with the text widget in read-only mode
+team_output_text.grid(row=0, column=0, sticky="nsew")
+team_output_frame.grid_rowconfigure(0, weight=1)  # Allow the text widget to expand vertically
+team_output_frame.grid_columnconfigure(0, weight=1)  # Allow the text widget to expand horizontally
+team_output_text.config(state=tk.DISABLED)  # Set the text widget to read-only mode
 
 # Text widget for Skill Totals Output
 skill_output_text = tk.Text(skill_output_frame, height=11, width=25, bg='black', fg='white', wrap=tk.WORD)
-skill_output_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-skill_output_text.config(state=tk.DISABLED)  # Start with the text widget in read-only mode
+skill_output_text.grid(row=0, column=0, sticky="nsew")
+skill_output_frame.grid_rowconfigure(0, weight=1)  # Allow the text widget to expand vertically
+skill_output_frame.grid_columnconfigure(0, weight=1)  # Allow the text widget to expand horizontally
+skill_output_text.config(state=tk.DISABLED)  # Set the text widget to read-only mode
 
-# Sliders section below the configuration frames
-sliders_frame = Frame(root, bg='black')
-sliders_frame.pack(fill=tk.X, pady=10)
+# Sliders section below the configuration frames (3,1 3,2 3,3 and 4,1 4,2 4,3)
+sliders_frame = Frame(main_container, bg='black')
+sliders_frame.grid(row=2, column=0, columnspan=3, rowspan=2, sticky="nsew", padx=10, pady=10)
+main_container.grid_rowconfigure(2, weight=1)  # Allow the sliders frame to expand vertically
+main_container.grid_rowconfigure(3, weight=1)  # Allow the sliders frame to expand vertically
+main_container.grid_columnconfigure(0, weight=1)  # Allow the sliders frame to expand horizontally
+main_container.grid_columnconfigure(1, weight=1)  # Allow the sliders frame to expand horizontally
+main_container.grid_columnconfigure(2, weight=1)  # Allow the sliders frame to expand horizontally
+
+# Create and place the sliders
 skill_labels = ['Kindling', 'Watering', 'Planting', 'Electricity', 'Handiwork', 'Gathering', 'Lumbering', 'Mining', 'Medicine', 'Cooling', 'Transporting']
 num_channels = 6
-sliders = [LinkedSlider(sliders_frame, label, num_channels, on_slider_change) for label in skill_labels]
+sliders = []
+for i, label in enumerate(skill_labels):
+    slider = LinkedSlider(sliders_frame, label, num_channels, on_slider_change)
+    slider.frame.grid(row=i, column=0, columnspan=3, sticky="ew")
+    sliders.append(slider)
 
-recalculate_results()
+# Filters frame (1,4 2,4 3,4 and 4,4)
+filters_frame = Frame(main_container, bg='black')
+filters_frame.grid(row=0, column=3, rowspan=4, sticky="nsew", padx=10, pady=10)
+
+# Configure the grid within the filters frame
+for i in range(16):  # Assuming 16 filters
+    filters_frame.grid_rowconfigure(i, weight=1)
+
+# Create dropdowns and entry fields for each filter
+pal_constraint_vars = []
+dropdown_width = 16  # Adjust this as needed to match the width of your blacklist element
+for i in range(16):
+    # Combobox for selecting an item
+    pal_var = tk.StringVar()
+    pal_combobox = ttk.Combobox(filters_frame, textvariable=pal_var, values=[''] + pal_names, state="readonly")
+    pal_combobox.config(width=dropdown_width)
+    pal_combobox.grid(row=i, column=0, sticky="ew", padx=(0, 5))
+
+    # Entry field for specifying the constraint
+    max_count_var = tk.StringVar()
+    max_count_entry = tk.Entry(filters_frame, textvariable=max_count_var, width=3)
+    max_count_entry.grid(row=i, column=1, sticky="ew")
+
+    # Limit the size of the entry and other configurations
+    max_count_var.trace("w", lambda name, index, mode, sv=max_count_var: limit_entry_size(sv))
+    pal_constraint_vars.append((pal_var, max_count_var))
+
+    # Store the variable references (if needed later)
+    pal_constraint_vars.append((pal_var, max_count_var))
+
+    # Bind the change event to the entry field's StringVar
+    max_count_var.trace_add("write", on_filter_change)
+    pal_var.trace_add("write", on_filter_change)
+
+root.mainloop()
+
+
+#recalculate_results()
 
 root.mainloop()
