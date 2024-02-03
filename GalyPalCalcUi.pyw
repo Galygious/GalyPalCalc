@@ -1,5 +1,7 @@
 import subprocess
 import sys
+import base64
+
 
 # Function to install packages using pip
 def install(package):
@@ -21,7 +23,7 @@ try:
 except ImportError:
     install('pandas')
     import pandas as pd
-
+    
 try:
     from io import StringIO
 except ImportError:
@@ -178,6 +180,16 @@ Mozzarina,0,0,0,0,0,0,0,0,0,0,0,0,,,,,,,,,,,
 Woolipop,0,0,0,0,0,0,0,0,0,0,0,0,,,,,,,,,,,
 Melpaca,0,0,0,0,0,0,0,0,0,0,0,0,,,,,,,,,,,
 """
+# Global dictionary to hold save slot names and their state strings
+global save_states
+save_states = {}
+
+# Global variable to store save buttons
+global save_buttons
+save_buttons = []
+
+# Global flag
+is_updating_from_state_string = False
 
 # Extract pal names from the csv_data
 csv_io = StringIO(csv_data)
@@ -186,6 +198,9 @@ pal_names = sorted(pal_df['Name'].tolist())
 max_value = 100
 
 def recalculate_results():
+    global is_updating_from_state_string
+    if is_updating_from_state_string:
+        return
     # Retrieve the current values from the sliders
     slider_values = {slider.label['text']: slider.value.get() for slider in sliders}
     
@@ -266,14 +281,26 @@ def recalculate_results():
         pal_name = pal_var.get()
         max_count = max_count_var.get()
 
+        # Skip if the pal is blacklisted
+        if pal_name in [blacklist_listbox.get(i) for i in blacklist_listbox.curselection()]:
+            print(f"Skipping filter for blacklisted pal '{pal_name}'.")
+            continue
+
         if pal_name and max_count.isdigit():  # Check if both fields are filled and max_count is a number
             max_count = int(max_count)
-            # Apply this constraint to your optimization logic
-            # For example, if using a linear programming model:
-            # Find the index of the pal in your DataFrame
-            pal_index = df[df['Name'] == pal_name].index.item()
-            # Add a constraint for this pal
-            prob += pal_vars[pal_index] <= max_count
+            # Check if the pal is in the DataFrame
+            if pal_name in df['Name'].values:
+                # Find the index of the pal in your DataFrame
+                pal_index = df[df['Name'] == pal_name].index
+                if len(pal_index) == 1:
+                    pal_index = pal_index[0]  # Get the single index value
+                    # Add a constraint for this pal
+                    prob += pal_vars[pal_index] <= max_count
+                else:
+                    print(f"Multiple or no entries found for '{pal_name}'")
+            else:
+                print(f"'{pal_name}' not found in DataFrame.")
+
 
     # Solve the problem
     status = prob.solve()
@@ -307,6 +334,9 @@ def recalculate_results():
     skill_output_text.delete(1.0, tk.END)
     skill_output_text.insert(tk.END, skill_output)
     skill_output_text.config(state=tk.DISABLED)
+    
+    # Update the State String
+    update_state_string()
     
 # Define a callback function to set the maximum constraint
 def set_maximum_constraint():
@@ -355,6 +385,9 @@ class LinkedSlider:
         for i, var in enumerate(self.channel_vars):
             if i != channel_index:
                 var.set(0)
+                
+        # Update the State String
+        update_state_string()
 
     def get_selected_channel(self):
         for i, var in enumerate(self.channel_vars):
@@ -380,6 +413,204 @@ def on_slider_change(event):
     
     recalculate_results()
 
+# Function to check the base64 integrity of data.
+def checkBinaryToBytes(binary_data):
+    # Convert binary string to bytes
+    byte_data = int(binary_data, 2).to_bytes((len(binary_data) + 7) // 8, byteorder='big')
+
+    # Convert bytes back to binary string
+    converted_binary_data = format(int.from_bytes(byte_data, byteorder='big'), f'0{len(binary_data)}b')
+
+    # Compare original and converted binary data
+    if binary_data == converted_binary_data:
+        print("Binary to bytes conversion and back successful.")
+        return True
+    else:
+        print("Discrepancy found in binary to bytes conversion.")
+        print(f"Original: {binary_data}")
+        print(f"Converted: {converted_binary_data}")
+        return False
+
+
+# Function to update the state string
+def update_state_string():
+    global is_updating_from_state_string
+    if is_updating_from_state_string:
+        return
+    try:
+        # Debugging print
+        print("Updating state string...")
+
+        # Gather current settings and debug print them
+        max_pals = max_pals_var.get()
+        infused = infused_var.get()
+        max_constraints = max_constraint_var.get() // 20
+        print(f"Max Pals: {max_pals}, Infused: {infused}, Max Constraints: {max_constraints}")
+
+        # For sliders and channels, gather their values
+        slider_values = [slider.value.get() // 2 for slider in sliders]  # Dividing by 2 due to resolution
+        channel_values = [slider.get_selected_channel() + 1 if slider.get_selected_channel() is not None else 0 for slider in sliders]
+        
+        print("Slider Values:", slider_values)
+        print("Channel Values:", channel_values)
+
+
+        # For blacklist, extract actual pal names from the listbox items
+        blacklist = []
+        for idx in blacklist_listbox.curselection():
+            full_string = blacklist_listbox.get(idx)
+            pal_name = full_string.split('. ', 1)[1]  # Splitting on '. ' and taking the second part
+            if pal_name in pal_names:
+                pal_index = pal_names.index(pal_name) + 1  # +1 if you want to start indices from 1
+                blacklist.append(pal_index)
+
+        # For filters, assuming pal_constraint_vars is a list of tuples (pal_var, max_count_var)
+        filter_binary = ''
+        for pal_var, max_count_var in pal_constraint_vars:
+            pal_name = pal_var.get()
+            max_count = max_count_var.get()
+
+            if pal_name in pal_names and max_count.isdigit():
+                pal_index = pal_names.index(pal_name)
+                max_count = int(max_count)
+
+                # Convert pal index and count to binary
+                filter_binary += format(pal_index, '08b')  # Assuming 8 bits for pal index
+                filter_binary += format(max_count, '08b')  # Assuming 8 bits for max count
+            else:
+                # Add empty binary strings for unused filters
+                filter_binary += '0' * 16  # 16 bits for each unused filter (8 for index + 8 for count)
+
+        
+
+        # Step 2: Convert to binary and concatenate
+        binary_data = ''.join([
+            format(max_pals, '08b'),  # 8 bits for max pals
+            '1' if infused else '0',  # 1 bit for infused
+            format(max_constraints, '05b'),  # 5 bits for max constraints
+            ''.join(format(val, '04b') for val in slider_values),  # 4 bits per slider value
+            ''.join(format(val, '04b') for val in channel_values),  # 4 bits per channel value
+            ''.join('1' if i + 1 in blacklist else '0' for i in range(len(pal_names))),  # 1 bit per pal for blacklist
+            filter_binary  # Binary conversion for filters
+        ])
+        
+        # Ensure binary string length is a multiple of 8
+        if len(binary_data) % 8 != 0:
+            binary_data = binary_data.ljust(len(binary_data) + (8 - len(binary_data) % 8), '0')  # Pad with zeros
+
+        # Step 3: Convert binary string to bytes
+        byte_data = int(binary_data, 2).to_bytes((len(binary_data) + 7) // 8, byteorder='big')
+
+
+        # Step 4: Encode to Base64
+        base64_encoded = base64.b64encode(byte_data).decode('utf-8')
+
+        # Debugging print
+        print("State string updated:", base64_encoded)
+
+        # Update the state string text field
+        state_string_text.delete(0, tk.END)
+        state_string_text.insert(0, base64_encoded)
+
+    except Exception as e:
+        print("Error updating state string:", e)
+        
+async def insertTextAndRecalculate():
+    
+    recalculate_results()
+
+def apply_state_string(state_string):
+    global is_updating_from_state_string
+    try:
+        is_updating_from_state_string = True
+        if not state_string.strip():
+            # Reset all UI components to default if state_string is empty
+            max_pals_var.set(1)
+            infused_var.set(0)
+            max_constraint_var.set(100)
+            for slider in sliders:
+                slider.value.set(0)
+                for var in slider.channel_vars:
+                    var.set(0)
+                slider.channel = None
+            blacklist_listbox.selection_clear(0, tk.END)
+            for pal_var, max_count_var in pal_constraint_vars:
+                pal_var.set('')
+                max_count_var.set('')
+            defaultstatestring = "ARQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+            state_string_text.insert(0, defaultstatestring)
+            root.after(1, recalculate_results)
+            print("Reset to default state")
+            return
+        # Decode state string from Base64
+        byte_data = base64.b64decode(state_string)
+        binary_data = format(int.from_bytes(byte_data, byteorder='big'), f'0{len(byte_data)*8}b')
+
+        # Extract values for each UI component from the binary string
+        idx = 0
+        max_pals = int(binary_data[idx:idx+8], 2)
+        idx += 8
+        infused = binary_data[idx] == '1'
+        idx += 1
+        max_constraints = int(binary_data[idx:idx+5], 2) * 20
+        idx += 5
+
+        # Update max pals and infused
+        max_pals_var.set(max_pals)
+        infused_var.set(1 if infused else 0)
+        max_constraint_var.set(max_constraints)
+
+        # Step 1: Update sliders
+        for slider in sliders:
+            slider_value = int(binary_data[idx:idx+4], 2) * 2  # Decode slider value and multiply by resolution
+            idx += 4
+            print(f"Setting Slider {slider.label['text']} Value: {slider_value}")
+            slider.value.set(slider_value)  # Set slider value
+
+        # Step 2: Update channels
+        for slider in sliders:
+            channel_value = int(binary_data[idx:idx+4], 2)  # Decode channel value
+            idx += 4
+            print(f"Setting Channel for {slider.label['text']} to: {channel_value}")
+            
+            # Reset all channel checkboxes before setting the new value
+            for var in slider.channel_vars:
+                var.set(0)
+            slider.channel = None
+
+            # If channel_value is not 0, set the appropriate channel
+            if channel_value > 0:
+                # -1 because channel values are 1-indexed in the state string
+                slider.channel_vars[channel_value - 1].set(1)
+                slider.update_channel(channel_value - 1)
+
+
+
+        # Update blacklist
+        blacklist_listbox.selection_clear(0, tk.END)
+        for i in range(len(pal_names)):
+            if binary_data[idx] == '1':
+                blacklist_listbox.selection_set(i)
+            idx += 1
+
+        # Update filters
+        for pal_var, max_count_var in pal_constraint_vars:
+            pal_index = int(binary_data[idx:idx+8], 2)
+            idx += 8
+            max_count = int(binary_data[idx:idx+8], 2)
+            idx += 8
+
+            if pal_index > 0 and max_count > 0:
+                pal_var.set(pal_names[pal_index - 1])
+                max_count_var.set(str(max_count))
+
+        recalculate_results()
+
+    except Exception as e:
+        print("Error applying state string:", e)
+        print(state_string)
+    finally:
+        is_updating_from_state_string = False
 
 def on_blacklist_update(event):
     recalculate_results()
@@ -402,6 +633,93 @@ def limit_entry_size(var, maxlen=3):
 def on_filter_change(*args):
     # Function called whenever a filter value changes
     recalculate_results()
+    
+def load_or_save(slot):
+    global save_buttons, state_string_text, save_name_entry
+
+    # Check if the slot already has a save state
+    if slot in save_states:
+        save_name, state_string = save_states[slot]
+        apply_state_string(state_string)
+        state_string_text.delete(0, tk.END)  # Clear the text widget
+        state_string_text.insert(0, state_string)
+        save_name_entry.delete(0, tk.END)  # Clear the save name entry
+        save_name_entry.insert(0, save_name)  # Insert the saved save name
+        recalculate_results()
+        print(f"Loaded state for slot {slot+1}: {save_name}")
+    else:
+        # Save the current state
+        state_string = state_string_text.get()
+        save_name = save_name_entry.get()
+
+        if state_string and save_name and save_name != "Please Enter Save Name":
+            # Save the state, save name, and slot
+            save_states[slot] = (save_name, state_string)
+            save_to_file()  # Call a function to save states to a file
+            # Update the button text with the saved save name
+            save_buttons[slot].config(text=save_name)
+            save_name_entry.delete(0,tk.END)
+            print(f"Saved state for slot {slot+1}: {save_name}")
+        else:
+            print("Please enter a valid state and save name.")
+            # If the save name is empty or set to "Please Enter Save Name," reset it
+            if not save_name:
+                save_name_entry.delete(0, tk.END)
+                save_name_entry.insert(0, "Please Enter Save Name")
+
+def save_to_file():
+    # Save the current save_states dictionary to a file
+    with open("saves.txt", "w") as file:
+        for slot, data in save_states.items():
+            save_name, state_string = data
+            file.write(f"{slot}:{save_name}:{state_string}\n")
+
+def load_from_file():
+    global save_states
+    try:
+        with open("saves.txt", "r") as file:
+            content = file.read().strip()
+            if content:
+                # Process each line as a slot:name:state pair
+                for line in content.splitlines():
+                    parts = line.strip().split(":")
+                    if len(parts) == 3:
+                        slot, name, state = parts
+                        try:
+                            slot = int(slot)
+                            save_states[int(slot)] = (name, state)
+                        except ValueError:
+                            print(f"Invalid slot number: {slot}")
+                    
+                        # Update the button text to reflect loaded save names
+                        if 0 <= slot < len(save_buttons):
+                            save_buttons[slot].config(text=name)
+                    else:
+                        print(f"Invalid format in line: {line}")
+            else:
+                # Initialize save_states as empty if file is empty
+                save_states = {}
+    except FileNotFoundError:
+        print("No saved states file found.")
+
+        
+def clear_state(slot):
+    global save_buttons, save_states
+
+    # Check if this slot has a saved state
+    if slot in save_states:
+        # Clear the saved state for the slot
+        del save_states[slot]
+        # Reset the button text to the default "Slot {slot + 1}"
+        save_buttons[slot].config(text=f"Slot {slot + 1}")
+        # Update the saved states file
+        save_to_file()
+        print(f"Cleared state for slot {slot + 1}")
+    else:
+        print(f"No saved state found for slot {slot + 1}")
+
+    # Debug: Print the updated save states
+    print("Updated save states after clearing:", save_states)
 
 root = tk.Tk()
 root.title('GalyPalCalc')
@@ -412,23 +730,57 @@ main_container = Frame(root, bg='black')
 main_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
 # Configure the grid layout within the main container
-main_container.grid_columnconfigure(0, weight=1)
+main_container.grid_columnconfigure(0, weight=2)
 main_container.grid_columnconfigure(1, weight=2)  # Blacklist frame may need more space
 main_container.grid_columnconfigure(2, weight=2)  # Output frame may need more space
-main_container.grid_columnconfigure(3, weight=1)  # Filter frame
+main_container.grid_columnconfigure(3, weight=2)  # Filter frame
+main_container.grid_columnconfigure(4, weight=2)  # Filter frame
+main_container.grid_columnconfigure(5, weight=1)  # Filter frame
 main_container.grid_rowconfigure(0, weight=1)
 main_container.grid_rowconfigure(1, weight=1)
 main_container.grid_rowconfigure(2, weight=4)  # Sliders and channels may need more space
 main_container.grid_rowconfigure(3, weight=4)  # Sliders and channels may need more space
 
+# Save name entry container (placed in the main container, now in column 0)
+save_name_container = Frame(main_container, bg='black')
+save_name_container.grid(row=0, column=0, sticky="ew")
+
+# Configure the grid layout within save_name_container
+save_name_container.grid_columnconfigure(0, weight=1)  # Adjust weight as needed
+save_name_container.grid_rowconfigure(0, weight=1)
+save_name_container.grid_rowconfigure(1, weight=1)
+
+# Label for save name
+save_name_entry_label = Label(save_name_container, text="Save Name", fg='white', bg='black')
+save_name_entry_label.grid(row=0, column=0, sticky="ew")
+
+# Entry for save name
+save_name_entry = tk.Entry(save_name_container)
+save_name_entry.grid(row=1, column=0, sticky="ew")
+
+# Container for save and clear buttons
+save_buttons_container = Frame(main_container, bg='black')
+save_buttons_container.grid(row=1, column=0, rowspan=4, sticky="nsew")
+
+# Save and clear buttons (placed in the save_buttons_container)
+for i in range(12):  # Adjust the range for more save slots
+    # Save/Load button
+    save_btn = tk.Button(save_buttons_container, text=f"Slot {i+1}", command=lambda i=i: load_or_save(i))
+    save_btn.grid(row=i+1, column=0, sticky="ew")
+    save_buttons.append(save_btn)
+
+    # Clear button
+    clear_btn = tk.Button(save_buttons_container, text=f"Clear", command=lambda i=i: clear_state(i))
+    clear_btn.grid(row=i+1, column=1, sticky="ew")
+
 # Left configuration frame for Max Pals, Max Constraints, and Infused (1,1)
 left_config_frame = Frame(main_container, bg='black')
-left_config_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+left_config_frame.grid(row=0, column=2, sticky="nsew", padx=10, pady=10)
 
 # Create and place the Max Pals slider, Max Constraints slider, and Infused checkbox in left_config_frame
 # Create the left_config_frame with a grid layout
 left_config_frame = Frame(main_container, bg='black')
-left_config_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+left_config_frame.grid(row=0, column=2, sticky="nsew", padx=10, pady=10)
 
 # Create the IntVar for max_pals and max_constraints
 max_pals_var = IntVar(value=1)
@@ -437,36 +789,36 @@ infused_var = IntVar()
 
 # Max Pals label and slider
 max_pals_label = Label(left_config_frame, text="Max Pals", fg='white', bg='black')
-max_pals_label.grid(row=0, column=0, sticky="w", padx=5, pady=2)
+max_pals_label.grid(row=0, column=2, sticky="w", padx=5, pady=2)
 max_pals_slider = Scale(left_config_frame, from_=1, to=20, orient=HORIZONTAL, bg='black', fg='white', troughcolor='grey', variable=max_pals_var)
-max_pals_slider.grid(row=1, column=0, sticky="ew", padx=5, pady=2)
+max_pals_slider.grid(row=1, column=2, sticky="ew", padx=5, pady=2)
 max_pals_slider.bind("<ButtonRelease-1>", update_max_pals)
 
 # Infused checkbutton
 infused_checkbutton = Checkbutton(left_config_frame, text="Infused", variable=infused_var, selectcolor='black', fg='white', bg='black', activebackground='black', activeforeground='white')
-infused_checkbutton.grid(row=2, column=0, sticky="w", padx=5, pady=2)
+infused_checkbutton.grid(row=2, column=2, sticky="w", padx=5, pady=2)
 
 # Max Constraints label and slider
 max_constraints_label = Label(left_config_frame, text="Max Constraints", fg='white', bg='black')
-max_constraints_label.grid(row=3, column=0, sticky="w", padx=5, pady=2)
+max_constraints_label.grid(row=3, column=2, sticky="w", padx=5, pady=2)
 max_constraint_slider = Scale(left_config_frame, from_=20, to=640, resolution=20, orient=HORIZONTAL, bg='black', fg='white', troughcolor='grey', variable=max_constraint_var)
-max_constraint_slider.grid(row=4, column=0, sticky="ew", padx=5, pady=2)
+max_constraint_slider.grid(row=4, column=2, sticky="ew", padx=5, pady=2)
 max_constraint_slider.bind("<ButtonRelease-1>", update_max_constraint)
 
 # Center configuration frame for Blacklist (1,2 and 2,2)
 center_config_frame = Frame(main_container, bg='black')
-center_config_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=10, pady=10)
+center_config_frame.grid(row=0, column=3, rowspan=2, sticky="nsew", padx=10, pady=10)
 
 # Create and place the Blacklist section in center_config_frame
 # Blacklist label
 blacklist_label = Label(center_config_frame, text="Blacklist Pals", fg='white', bg='black')
-blacklist_label.grid(row=0, column=0, sticky="w", padx=5, pady=2)
+blacklist_label.grid(row=0, column=2, sticky="w", padx=5, pady=2)
 
 # Blacklist listbox
 blacklist_listbox = Listbox(center_config_frame, selectmode=MULTIPLE, bg='grey', fg='white', selectbackground='darkgrey', selectforeground='white', exportselection=False)
-blacklist_listbox.grid(row=1, column=0, sticky="nsew", padx=5, pady=2)  # 'nsew' makes the listbox expand
+blacklist_listbox.grid(row=1, column=2, sticky="nsew", padx=5, pady=2)  # 'nsew' makes the listbox expand
 center_config_frame.grid_rowconfigure(1, weight=1)  # This allows the listbox to expand vertically
-center_config_frame.grid_columnconfigure(0, weight=1)  # This allows the listbox to expand horizontally
+center_config_frame.grid_columnconfigure(2, weight=1)  # This allows the listbox to expand horizontally
 
 # Binding for the blacklist update
 blacklist_listbox.bind('<<ListboxSelect>>', on_blacklist_update)
@@ -477,45 +829,45 @@ for idx, name in enumerate(pal_names, 1):
 
 # Right configuration frame for Output (1,3 and 2,3)
 right_config_frame = Frame(main_container, bg='black')
-right_config_frame.grid(row=0, column=2, rowspan=2, sticky="nsew", padx=10, pady=10)
+right_config_frame.grid(row=0, column=4, rowspan=2, sticky="nsew", padx=10, pady=10)
 
 # Create and place the Team Composition Output and Skill Totals Output in right_config_frame
 # Right configuration frame for Output (1,3 and 2,3)
 right_config_frame = Frame(main_container, bg='black')
-right_config_frame.grid(row=0, column=2, rowspan=2, sticky="nsew", padx=10, pady=10)
-right_config_frame.grid_columnconfigure(0, weight=1)  # Allow the team output frame to expand horizontally
-right_config_frame.grid_columnconfigure(1, weight=1)  # Allow the skill output frame to expand horizontally
+right_config_frame.grid(row=0, column=4, rowspan=2, sticky="nsew", padx=10, pady=10)
+right_config_frame.grid_columnconfigure(2, weight=1)  # Allow the team output frame to expand horizontally
+right_config_frame.grid_columnconfigure(3, weight=1)  # Allow the skill output frame to expand horizontally
 
 # Frame for Team Composition Output
 team_output_frame = Frame(right_config_frame, bg='black')
-team_output_frame.grid(row=0, column=0, sticky="nsew")
+team_output_frame.grid(row=0, column=2, sticky="nsew")
 
 # Frame for Skill Totals Output
 skill_output_frame = Frame(right_config_frame, bg='black')
-skill_output_frame.grid(row=0, column=1, sticky="nsew")
+skill_output_frame.grid(row=0, column=3, sticky="nsew")
 
 # Text widget for Team Composition Output
 team_output_text = tk.Text(team_output_frame, height=11, width=25, bg='black', fg='white', wrap=tk.WORD)
-team_output_text.grid(row=0, column=0, sticky="nsew")
+team_output_text.grid(row=0, column=2, sticky="nsew")
 team_output_frame.grid_rowconfigure(0, weight=1)  # Allow the text widget to expand vertically
-team_output_frame.grid_columnconfigure(0, weight=1)  # Allow the text widget to expand horizontally
+team_output_frame.grid_columnconfigure(2, weight=1)  # Allow the text widget to expand horizontally
 team_output_text.config(state=tk.DISABLED)  # Set the text widget to read-only mode
 
 # Text widget for Skill Totals Output
 skill_output_text = tk.Text(skill_output_frame, height=11, width=25, bg='black', fg='white', wrap=tk.WORD)
-skill_output_text.grid(row=0, column=0, sticky="nsew")
+skill_output_text.grid(row=0, column=2, sticky="nsew")
 skill_output_frame.grid_rowconfigure(0, weight=1)  # Allow the text widget to expand vertically
-skill_output_frame.grid_columnconfigure(0, weight=1)  # Allow the text widget to expand horizontally
+skill_output_frame.grid_columnconfigure(2, weight=1)  # Allow the text widget to expand horizontally
 skill_output_text.config(state=tk.DISABLED)  # Set the text widget to read-only mode
 
 # Sliders section below the configuration frames (3,1 3,2 3,3 and 4,1 4,2 4,3)
 sliders_frame = Frame(main_container, bg='black')
-sliders_frame.grid(row=2, column=0, columnspan=3, rowspan=2, sticky="nsew", padx=10, pady=10)
+sliders_frame.grid(row=2, column=2, columnspan=3, rowspan=2, sticky="nsew", padx=10, pady=10)
 main_container.grid_rowconfigure(2, weight=1)  # Allow the sliders frame to expand vertically
 main_container.grid_rowconfigure(3, weight=1)  # Allow the sliders frame to expand vertically
-main_container.grid_columnconfigure(0, weight=1)  # Allow the sliders frame to expand horizontally
-main_container.grid_columnconfigure(1, weight=1)  # Allow the sliders frame to expand horizontally
 main_container.grid_columnconfigure(2, weight=1)  # Allow the sliders frame to expand horizontally
+main_container.grid_columnconfigure(3, weight=1)  # Allow the sliders frame to expand horizontally
+main_container.grid_columnconfigure(4, weight=1)  # Allow the sliders frame to expand horizontally
 
 # Create and place the sliders
 skill_labels = ['Kindling', 'Watering', 'Planting', 'Electricity', 'Handiwork', 'Gathering', 'Lumbering', 'Mining', 'Medicine', 'Cooling', 'Transporting']
@@ -523,12 +875,12 @@ num_channels = 6
 sliders = []
 for i, label in enumerate(skill_labels):
     slider = LinkedSlider(sliders_frame, label, num_channels, on_slider_change)
-    slider.frame.grid(row=i, column=0, columnspan=3, sticky="ew")
+    slider.frame.grid(row=i, column=2, columnspan=3, sticky="ew")
     sliders.append(slider)
 
 # Filters frame (1,4 2,4 3,4 and 4,4)
 filters_frame = Frame(main_container, bg='black')
-filters_frame.grid(row=0, column=3, rowspan=4, sticky="nsew", padx=10, pady=10)
+filters_frame.grid(row=0, column=5, rowspan=4, sticky="nsew", padx=10, pady=10)
 
 # Configure the grid within the filters frame
 for i in range(16):  # Assuming 16 filters
@@ -542,12 +894,12 @@ for i in range(16):
     pal_var = tk.StringVar()
     pal_combobox = ttk.Combobox(filters_frame, textvariable=pal_var, values=[''] + pal_names, state="readonly")
     pal_combobox.config(width=dropdown_width)
-    pal_combobox.grid(row=i, column=0, sticky="ew", padx=(0, 5))
+    pal_combobox.grid(row=i, column=2, sticky="ew", padx=(0, 5))
 
     # Entry field for specifying the constraint
     max_count_var = tk.StringVar()
     max_count_entry = tk.Entry(filters_frame, textvariable=max_count_var, width=3)
-    max_count_entry.grid(row=i, column=1, sticky="ew")
+    max_count_entry.grid(row=i, column=3, sticky="ew")
 
     # Limit the size of the entry and other configurations
     max_count_var.trace("w", lambda name, index, mode, sv=max_count_var: limit_entry_size(sv))
@@ -560,9 +912,21 @@ for i in range(16):
     max_count_var.trace_add("write", on_filter_change)
     pal_var.trace_add("write", on_filter_change)
 
-root.mainloop()
 
+# Create a frame for the state string display
+state_string_frame = tk.Frame(main_container, bg='black')
+state_string_frame.grid(row=4, column=2, columnspan=4, sticky="nsew", padx=10, pady=10)
+
+# Label for the state string text field
+Label(state_string_frame, text="State String:", fg='white', bg='black').pack(side=tk.LEFT)
+
+# Text field for displaying the state string
+state_string_text = tk.Entry(state_string_frame, width=100)  # Adjust the width as needed
+state_string_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+# Bind the event to the entry field
+state_string_text.bind('<KeyRelease>', lambda event: apply_state_string(event.widget.get()))
 
 #recalculate_results()
 
+load_from_file()
 root.mainloop()
